@@ -1,4 +1,4 @@
-(defproject net.aaroniba/ring-webutils "0.0.1"
+(defproject net.aaroniba/ring-webutils "1.0.0"
   :description "Various utilities for making a webserver in ring."
   :url "https://github.com/aiba/ring-webutils"
   :license {:name "Eclipse Public License - v 1.0"

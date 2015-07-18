@@ -5,7 +5,9 @@
             [hiccup.page :refer [doctype]]
             [ring.util.response :as response]
             [ns-tracker.core :refer [ns-tracker]]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [org.httpkit.server :as httpserver]
+            (ring.middleware params keyword-params multipart-params))
   (:import org.apache.commons.lang3.exception.ExceptionUtils))
 
 ;; Logging —————————————————————————————————————————————————————————————————————
@@ -22,13 +24,13 @@
 (defn config-logging! [outf]
   (locking logconfig-lock*
     (when-not (= (System/getProperty logconfig-syskey) "true")
-      (with-open [f (io/file outf)]
+      (let [f (io/file outf)]
         (.mkdirs (.getParentFile f))
         (set-loggers! :config {:level :info}
                       :root {:level :info
-                             :out (appender (.getAbsolutePath f))})
+                             :out (appender outf)})
         (System/setProperty logconfig-syskey "true")
-        (println "logging to" (.toString f))))))
+        (println "logging to" outf)))))
 
 ;; Caching —————————————————————————————————————————————————————————————————————
 
@@ -96,3 +98,21 @@
           (log/error (str "\n" (apply str (repeat 80 "-")) "\n" s "\n\n"))
           (assoc (plaintext-response s)
                  :status 500))))))
+
+(defn wrap-params [handler]
+  (-> handler
+      (ring.middleware.keyword-params/wrap-keyword-params)
+      (ring.middleware.params/wrap-params)
+      (ring.middleware.multipart-params/wrap-multipart-params)))
+
+;; Making an actual webserver ——————————————————————————————————————————————————
+
+(defn webserver []
+  (atom nil))
+
+(defn restart-webserver! [server port handler]
+  (swap! server
+         (fn [s]
+           (when s (s))
+           (httpserver/run-server handler {:port port})))
+  (log/info "Webserver on port" port))
